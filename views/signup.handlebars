@@ -1,0 +1,57 @@
+<head>
+<title>Minimal Login</title>
+    <style>    
+        .login-container {
+            background-color: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            width: 300px;
+            text-align: center;
+        }
+        
+        h1 {
+            color: #5D9EE2;
+            font-size: 24px;
+            margin-bottom: 30px;
+        }
+        
+        input {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        
+        button {
+            background-color: #5D9EE2;
+            color: white;
+            border: none;
+            padding: 12px;
+            width: 100%;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        button:hover {
+            background-color: #4a8ed6;
+        }
+    </style>
+</head>
+<div class="main-content">
+      <h1>Sign Up</h1>
+        <form action="/signup" method="post">
+            <label for="username">Username:</label>
+            <input type="text" placeholder="Username" id="username" name="username" required>
+             <label for="password">Password:</label>
+            <input type="password" placeholder="Password" id="password" name="password" required>
+             <label for="email">Email:</label>
+            <input type="email" id="email" name="email" placeholder="example@example.com" required>
+            <button type="submit">Sign In</button>
+        </form>
+  </div>
+</body>
+</html>
