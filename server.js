@@ -8,6 +8,7 @@ const mysql = require("mysql2/promise");
 const bcrypt = require("bcrypt");
 const jwt = require('jsonwebtoken');
 
+
 async function getDBConnnection() {
   // Här skapas ett databaskopplings-objekt med inställningar för att ansluta till servern och databasen.
   return await mysql.createConnection({
@@ -19,7 +20,7 @@ async function getDBConnnection() {
 }
 
 
-const session = require('express-session');
+var session = require('express-session');
 
 app.use(session({
   secret: 'superhemligt',          // Byt till något eget i produktion
@@ -143,7 +144,9 @@ let payload = {
     password: user.password
   };
 
-  res.redirect('/');
+  res.redirect('/')
+  //res.json(req.session.user);
+  // res.render("/", { user: req.session.user })//.redirect('/');
 
 //res.redirect('/');
 /*res.status(200).json({
@@ -156,6 +159,7 @@ let payload = {
     res.status(401).json({ error: 'Invalid credentials' });
   }
  });
+ 
 
 
 app.listen(port, () => {
