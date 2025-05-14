@@ -9,6 +9,12 @@ const bcrypt = require("bcrypt");
 const jwt = require('jsonwebtoken');
 
 
+const http = require('http');
+const server = http.createServer(app);
+const { Server } = require("socket.io");
+const io = new Server(server);
+
+
 async function getDBConnnection() {
   // Här skapas ett databaskopplings-objekt med inställningar för att ansluta till servern och databasen.
   return await mysql.createConnection({
@@ -31,6 +37,11 @@ app.use(session({
   }
 }));
 
+app.use((req, res, next) => {
+  res.locals.user = req.session.user;
+  next();
+});
+
 function authMiddleware(req, res, next) {
   if (req.session.user) {
     next(); // släpp igenom
@@ -51,9 +62,34 @@ app.get('/', (req, res) => {
 
 })
 
-app.get('/science', authMiddleware, (req, res) => {
-    res.render('science'); // Renders the science.handlebars template
+app.get('/science', async (req, res) => {
+  const connection = await getDBConnnection();
+  const [messages] = await connection.execute(
+    'SELECT * FROM chat_messages WHERE room_id = ? ORDER BY created_at DESC',
+    [1] // or req.query.room_id or however you determine the room
+  );
+
+  res.render('science', {
+  user: req.session.user,
+  room_id: 1,
+  messages
+});
+});
+
+app.get('/art', async (req, res) => {
+  const connection = await getDBConnnection();
+  const [messages] = await connection.execute(
+    'SELECT * FROM chat_messages WHERE room_id = ? ORDER BY created_at DESC',
+    [2] // room_id för art
+  );
+
+  res.render('art', {
+    user: req.session.user,
+    room_id: 2,
+    messages
   });
+});
+
 
   app.get("/users", async (req, res) => {
     const users = await db.getUsers() // Hämtar alla users ur databasen
@@ -161,9 +197,41 @@ let payload = {
  });
  
 
+io.on('connection', (socket) => {
+  console.log('a user connected');
 
-app.listen(port, () => {
-    console.log(`Server is running on http://localhost:${port}`);
+  socket.on('chat message', async (data) => {
+  if (!data.username) return; // Avbryt om användare inte är inloggad
+
+  io.emit('chat message', data); // Skicka till alla
+
+  // Spara till databas
+  const connection = await getDBConnnection();
+  const sql = `INSERT INTO chat_messages (message, username, created_at, room_id)
+               VALUES (?, ?, ?, ?)`;
+
+  await connection.execute(sql, [
+    data.message,
+    data.username,
+    data.created_at,
+    data.room_id
+  ]);
+});
+});
+
+
+app.get('/logout', (req, res) => {
+  req.session.destroy((err) => {
+    if (err) {
+      console.error('Fel vid utloggning:', err);
+      return res.status(500).send('Kunde inte logga ut');
+    }
+    res.redirect('/login'); // Skicka användaren till login-sidan efter logout
+  });
 })
+
+server.listen(port, () => {
+  console.log(`Server is running on http://localhost:${port}`);
+});
 
 console.log("test")

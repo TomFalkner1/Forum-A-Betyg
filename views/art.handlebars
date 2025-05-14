@@ -10,7 +10,7 @@
   </style>
 
   <div class="main-content">
-        <h1>Science</h1>
+        <h1>Arts</h1>
         <ul id="messages">
     {{#each messages}}
       <li><strong>{{username}}</strong>: {{message}} <em>({{created_at}})</em></li>
@@ -25,32 +25,26 @@
     <script src="/socket.io/socket.io.js"></script>
 
 <script>
-  const username = "{{#if user}}{{user.username}}{{else}}undefined{{/if}}";
   var socket = io();
 
   var form = document.getElementById('form');
   var input = document.getElementById('input');
 
+  const username = "{{user.username}}";
   const room_id = {{room_id}}; // Kommer från servern
 
   form.addEventListener('submit', function(e) {
-  e.preventDefault();
-  
-  if (!username || username === "undefined") {
-    window.location.href = "/login";
-    return;
-  }
-
-  if (input.value) {
-    socket.emit('chat message', {
-      message: input.value,
-      username: username,
-      room_id: room_id,
-      created_at: new Date().toISOString()
-    });
-    input.value = '';
-  }
-});
+    e.preventDefault();
+    if (input.value) {
+      socket.emit('chat message', {
+        message: input.value, // Använd samma som i databasen
+        username: username,
+        room_id: room_id,
+        created_at: new Date().toISOString()
+      });
+      input.value = '';
+    }
+  });
 
   socket.on('chat message', function(msg) {
   if (msg.room_id !== room_id) return;
