@@ -1,4 +1,86 @@
   <style>
+    #messages > li {
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid #ccc;
+  display: flex;
+  flex-direction: column;
+}
+
+.msg-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: #555;
+  flex-wrap: wrap;
+}
+
+.username {
+  font-weight: bold;
+  color: #222;
+}
+
+.created-at {
+  font-style: normal;
+  color: #888;
+}
+
+.likes {
+  margin-left: auto; /* flyttar likes och knappar längst till höger */
+}
+
+.like-btn, .delete-btn {
+  font-size: 0.75rem;
+  padding: 2px 6px;
+  margin-left: 10px;
+  border: none;
+  border-radius: 3px;
+  color: white;
+  cursor: pointer;
+  width: auto;
+}
+
+.like-btn {
+  background-color: #e1d500;
+}
+
+.delete-btn {
+  background-color: #d9534f;
+}
+
+.delete-btn:hover {
+  background-color: #c9302c;
+}
+
+.msg-text {
+  margin-top: 0.25rem;
+  font-size: 1rem;
+  color: #000;
+  white-space: pre-wrap; /* behåll radbrytningar i meddelandet */
+}
+
+            .delete-btn {
+  font-size: 0.75rem;
+  padding: 2px 6px;
+  margin-left: 10px;
+  background-color: #d9534f;
+  border: none;
+  border-radius: 3px;
+  color: white;
+  cursor: pointer;
+  width: 10%;
+}
+ .like-btn {
+  font-size: 0.75rem;
+  padding: 2px 6px;
+  margin-left: 10px;
+  background-color: #e1d500;
+  border: none;
+  border-radius: 3px;
+  color: white;
+  cursor: pointer;
+  width: 10%;
+}
     #form { background: rgba(0, 0, 0, 0.15); padding: 0.25rem; position: fixed; bottom: 0; left: 0; right: 0; display: flex; height: 3rem; box-sizing: border-box; backdrop-filter: blur(10px); }
         #input { border: none; padding: 0 1rem; flex-grow: 1; border-radius: 2rem; margin: 0.25rem; }
         #input:focus { outline: none; }
@@ -7,15 +89,38 @@
         #messages { list-style-type: none; margin: 0; padding: 0; }
         #messages > li { padding: 0.5rem 1rem; }
         #messages > li:nth-child(odd) { background: #efefef; }
+
+
+.delete-btn:hover {
+  background-color: #c9302c;
+}
   </style>
 
   <div class="main-content">
         <h1>Science</h1>
         <ul id="messages">
-    {{#each messages}}
-      <li><strong>{{username}}</strong>: {{message}} <em>({{created_at}})</em></li>
-    {{/each}}
-  </ul>
+  {{#each messages}}
+    <li data-id="{{id}}">
+  <div class="msg-header">
+    <strong class="username">{{username}}</strong>
+    <em class="created-at">({{created_at}})</em>
+    <span class="likes">👍 <span class="like-count">{{likes}}</span></span>
+
+     <button class="like-btn">Gilla</button>
+    
+    {{#if ../user}}
+      {{#if (or (eq ../user.username username) (eq ../user.role "admin"))}}
+        <button class="delete-btn">🗑️</button>
+      {{/if}}
+    {{/if}}
+   
+  </div>
+  <div class="msg-text">{{message}}</div>
+</li>
+
+
+  {{/each}}
+</ul>
       <form id="form" action="">
         <input id="input" autocomplete="off" /><button>Send</button>
       </form>
@@ -56,10 +161,100 @@
   if (msg.room_id !== room_id) return;
 
   const item = document.createElement('li');
-  item.innerHTML = `<strong>${msg.username}</strong>: ${msg.message} <em>(${new Date(msg.created_at).toLocaleString()})</em>`;
-  
-  // Lägg till meddelandet i början av listan
+  item.dataset.id = msg.id;
+  item.innerHTML = `
+    <div class="msg-header">
+      <strong class="username">${msg.username}</strong>
+      <em class="created-at">(${new Date(msg.created_at).toLocaleString()})</em>
+      <span class="likes">👍 <span class="like-count">${msg.likes || 0}</span></span>
+      <button class="like-btn">Gilla</button>
+    </div>
+    <div class="msg-text">${msg.message}</div>
+  `;
+
+  // Gilla-knapp
+  item.querySelector('.like-btn').addEventListener('click', async () => {
+    const response = await fetch(`/messages/${msg.id}/like`, { method: 'POST' });
+    const result = await response.json();
+    if (result.success) {
+      item.querySelector('.like-count').textContent = result.likes;
+    }
+  });
+
+  // Raderingsknapp (om användaren är författare eller admin)
+  if (username === msg.username || "{{user.role}}" === "admin") {
+    const deleteBtn = document.createElement("button");
+    deleteBtn.classList.add("delete-btn");
+    deleteBtn.textContent = "🗑️";
+    deleteBtn.addEventListener("click", async () => {
+      const confirmed = confirm("Vill du verkligen ta bort detta meddelande?");
+      if (!confirmed) return;
+
+      const response = await fetch(`/messages/${msg.id}`, { method: 'DELETE' });
+      if (response.ok) {
+        item.remove();
+      } else {
+        alert("Kunde inte ta bort meddelandet.");
+      }
+    });
+
+    item.querySelector('.msg-header').appendChild(deleteBtn);
+  }
+
   document.getElementById('messages').prepend(item);
-  window.scrollTo(0, 0); // Skrolla till toppen istället för botten
+  window.scrollTo(0, 0);
 });
+
+
+
+document.querySelectorAll('.delete-btn').forEach(button => {
+  button.addEventListener('click', async (e) => {
+    const li = e.target.closest('li');
+    const id = li.dataset.id;
+
+    const confirmed = confirm("Vill du verkligen ta bort detta meddelande?");
+    if (!confirmed) return;
+
+    const response = await fetch(`/messages/${id}`, {
+      method: 'DELETE'
+    });
+
+    if (response.ok) {
+      li.remove();
+    } else {
+      alert("Kunde inte ta bort meddelandet.");
+    }
+  });
+});
+
+socket.on('message deleted', function(data) {
+  const li = document.querySelector(`li[data-id="${data.id}"]`);
+  if (li) li.remove();
+});
+
+// Lyssna på gilla-knapp för tidigare meddelanden
+document.querySelectorAll('.like-btn').forEach(button => {
+  button.addEventListener('click', async (e) => {
+    const li = e.target.closest('li');
+    const id = li.dataset.id;
+
+    const response = await fetch(`/messages/${id}/like`, { method: 'POST' });
+    const result = await response.json();
+
+    if (result.success) {
+      li.querySelector('.like-count').textContent = result.likes;
+    }
+  });
+});
+
+
+
+// Uppdatera när någon annan gillar
+socket.on('message liked', (data) => {
+  const li = document.querySelector(`li[data-id="${data.id}"]`);
+  if (li) {
+    li.querySelector('.like-count').textContent = data.likes;
+  }
+});
+
 </script>

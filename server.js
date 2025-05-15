@@ -1,12 +1,11 @@
 const express = require('express')
 const app = express()
-const port = 8400
+const port = 3000
 const path = require('path')
 const bodyparser = require("body-parser")
 const { engine } = require("express-handlebars")
 const mysql = require("mysql2/promise");
 const bcrypt = require("bcrypt");
-const jwt = require('jsonwebtoken');
 
 
 const http = require('http');
@@ -37,20 +36,28 @@ app.use(session({
   }
 }));
 
+const hbs = require("express-handlebars").create({
+  helpers: {
+    eq: (a, b) => a === b,
+    or: (a, b) => a || b
+  }
+});
+
+app.engine("handlebars", hbs.engine);
+
 app.use((req, res, next) => {
   res.locals.user = req.session.user;
   next();
 });
 
-function authMiddleware(req, res, next) {
+/*function authMiddleware(req, res, next) {
   if (req.session.user) {
     next(); // släpp igenom
   } else {
     res.redirect('/login'); // skicka till login om inte inloggad
   }
-}
+}*/
 
-app.engine("handlebars", engine())
 app.set('view engine', 'handlebars')
 
 app.set("views", "./views") //Talar om att alla mallar/templates/vyer ligger i mappen views.
@@ -65,9 +72,10 @@ app.get('/', (req, res) => {
 app.get('/science', async (req, res) => {
   const connection = await getDBConnnection();
   const [messages] = await connection.execute(
-    'SELECT * FROM chat_messages WHERE room_id = ? ORDER BY created_at DESC',
-    [1] // or req.query.room_id or however you determine the room
-  );
+  'SELECT id, message, username, created_at FROM chat_messages WHERE room_id = ? ORDER BY created_at DESC',
+  [1]
+);
+  
 
   res.render('science', {
   user: req.session.user,
@@ -79,9 +87,9 @@ app.get('/science', async (req, res) => {
 app.get('/art', async (req, res) => {
   const connection = await getDBConnnection();
   const [messages] = await connection.execute(
-    'SELECT * FROM chat_messages WHERE room_id = ? ORDER BY created_at DESC',
-    [2] // room_id för art
-  );
+  'SELECT id, message, username, created_at FROM chat_messages WHERE room_id = ? ORDER BY created_at DESC',
+  [2]
+);
 
   res.render('art', {
     user: req.session.user,
@@ -91,20 +99,50 @@ app.get('/art', async (req, res) => {
 });
 
 
-  app.get("/users", async (req, res) => {
-    const users = await db.getUsers() // Hämtar alla users ur databasen
-  
-    //Säger att vyn users ska användas och man sickar med
-    //ett objekt som har en egenskap, "users", som är en array med alla users.
-    //Det objektet kan användas av mallen/templaten/vyn.
-    res.render("users", { users })
-  })
+app.get('/sports', async (req, res) => {
+  const connection = await getDBConnnection();
+  const [messages] = await connection.execute(
+  'SELECT id, message, username, created_at FROM chat_messages WHERE room_id = ? ORDER BY created_at DESC',
+  [3]
+);
 
-app.get("/posts", async (req, res) => {
-    const userId = req.query.userId
-    const posts = await db.getPostsByUserId(userId)
-    res.render("posts", { userId, posts })
-  })
+  res.render('sports', {
+    user: req.session.user,
+    room_id: 3,
+    messages
+  });
+});
+
+
+app.get('/Technology', async (req, res) => {
+  const connection = await getDBConnnection();
+  const [messages] = await connection.execute(
+  'SELECT id, message, username, created_at FROM chat_messages WHERE room_id = ? ORDER BY created_at DESC',
+  [4]
+);
+
+  res.render('Technology', {
+    user: req.session.user,
+    room_id: 4,
+    messages
+  });
+});
+
+
+app.get('/general', async (req, res) => {
+  const connection = await getDBConnnection();
+  const [messages] = await connection.execute(
+  'SELECT id, message, username, created_at FROM chat_messages WHERE room_id = ? ORDER BY created_at DESC',
+  [5]
+);
+
+  res.render('general', {
+    user: req.session.user,
+    room_id: 5,
+    messages
+  });
+});
+
 
 app.get("/login", async (req, res) => {
   res.render('login');
@@ -130,23 +168,19 @@ if (req.body && req.body.username && req.body.email) {
       req.body.email,
       hashedPassword,
     ]);
-
-    let accinfo = { Username: req.body.username, Email: req.body.email}
-
     //results innehåller metadata om vad som skapades i databasen
     console.log(results);
     res.redirect('/login')
-    // res.status(201).json({info: results, Account: accinfo});
+    
   } else {
-    //returnera med felkod 422 Unprocessable entity.
-    //eller 400 Bad Request.
+
     res.sendStatus(422).json({error: "Inte unikt username"});
   }
 });
 
 
 app.post('/login', async function(req, res) {
-  //kod här för att hantera anrop…
+  //kod här för att hantera anrop
   let connection = await getDBConnnection();
   let sql = "SELECT * FROM users WHERE username = ?"
   let [results] = await connection.execute(sql, [req.body.username])
@@ -163,31 +197,15 @@ app.post('/login', async function(req, res) {
   const isPasswordValid = await bcrypt.compare(req.body.password, hashedPasswordFromDB);
 
   if (isPasswordValid) {
-    console.log("Du är inne")
-    // Skicka info om användaren, utan känslig info som t.ex. hash
-
-    //Denna kod skapar en token att returnera till anroparen.
-let payload = {
-  sub: user.Id,         // sub är obligatorisk
-  name: user.name // Valbar
-  // kan innehålla ytterligare attribut, t.ex. roller
-}
-
 
  req.session.user = {
     id: user.id,
     username: user.username,
-    password: user.password
+    password: user.password,
+    role: user.role
   };
 
   res.redirect('/')
-  //res.json(req.session.user);
-  // res.render("/", { user: req.session.user })//.redirect('/');
-
-//res.redirect('/');
-/*res.status(200).json({
-  token: token
-});*/
 
 
   } else {
@@ -200,23 +218,32 @@ let payload = {
 io.on('connection', (socket) => {
   console.log('a user connected');
 
-  socket.on('chat message', async (data) => {
-  if (!data.username) return; // Avbryt om användare inte är inloggad
+ socket.on('chat message', async (data) => {
+  if (!data.username) return;
 
-  io.emit('chat message', data); // Skicka till alla
-
-  // Spara till databas
   const connection = await getDBConnnection();
   const sql = `INSERT INTO chat_messages (message, username, created_at, room_id)
                VALUES (?, ?, ?, ?)`;
 
-  await connection.execute(sql, [
+  const [result] = await connection.execute(sql, [
     data.message,
     data.username,
     data.created_at,
     data.room_id
   ]);
+
+
+  const messageWithId = {
+    id: result.insertId,
+    message: data.message,
+    username: data.username,
+    created_at: data.created_at,
+    room_id: data.room_id
+  };
+
+  io.emit('chat message', messageWithId);
 });
+
 });
 
 
@@ -226,12 +253,49 @@ app.get('/logout', (req, res) => {
       console.error('Fel vid utloggning:', err);
       return res.status(500).send('Kunde inte logga ut');
     }
-    res.redirect('/login'); // Skicka användaren till login-sidan efter logout
+    res.redirect('/login');
   });
 })
+
+
+app.delete('/messages/:id', async (req, res) => {
+  const messageId = req.params.id;
+  const user = req.session.user;
+
+  if (!user) return res.status(401).json({ error: 'Not authenticated' });
+
+  const connection = await getDBConnnection();
+  const [rows] = await connection.execute('SELECT username FROM chat_messages WHERE id = ?', [messageId]);
+
+  if (rows.length === 0) return res.status(404).json({ error: 'Message not found' });
+
+  const message = rows[0];
+
+  if (message.username !== user.username && user.role !== 'admin') {
+    return res.status(403).json({ error: 'Not authorized' });
+  }
+
+  await connection.execute('DELETE FROM chat_messages WHERE id = ?', [messageId]);
+  io.emit('message deleted', { id: messageId });
+  res.sendStatus(200);
+});
+
+app.post('/messages/:id/like', async (req, res) => {
+  const messageId = req.params.id;
+  const connection = await getDBConnnection();
+
+  await connection.execute('UPDATE chat_messages SET likes = likes + 1 WHERE id = ?', [messageId]);
+
+  // Hämta uppdaterat antal likes
+  const [rows] = await connection.execute('SELECT likes FROM chat_messages WHERE id = ?', [messageId]);
+
+  const updatedLikes = rows[0]?.likes ?? 0;
+
+  io.emit('message liked', { id: messageId, likes: updatedLikes });
+
+  res.json({ success: true, likes: updatedLikes });
+});
 
 server.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
 });
-
-console.log("test")
