@@ -135,7 +135,7 @@ if (req.body && req.body.username && req.body.email) {
 
     //results innehåller metadata om vad som skapades i databasen
     console.log(results);
-    res.redirect('/')
+    res.redirect('/login')
     // res.status(201).json({info: results, Account: accinfo});
   } else {
     //returnera med felkod 422 Unprocessable entity.
